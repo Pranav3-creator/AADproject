@@ -1,0 +1,108 @@
+"""
+4x4 Sudoku constraint graph visualizer.
+
+Each cell (r,c) is a node.
+Edges connect cells that cannot share the same digit:
+- Same row
+- Same column
+- Same 2x2 block
+
+A valid Sudoku solution is a proper 4-coloring of this graph.
+"""
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+# -----------------------------
+#  Sudoku puzzle (same as your code)
+# -----------------------------
+# 0 means empty, others are givens (1..4)
+PUZZLE = [
+    [1, 0, 0, 0],
+    [0, 0, 4, 0],
+    [0, 1, 0, 0],
+    [0, 0, 0, 2],
+]
+
+
+def build_sudoku_graph():
+    """
+    Build the 4x4 Sudoku constraint graph.
+
+    Nodes: (r,c) with r,c in {1..4}
+    Edge between (r1,c1) and (r2,c2) if they share row, column, or 2x2 block.
+    """
+    G = nx.Graph()
+
+    # Add all 16 cells as nodes
+    cells = [(r, c) for r in range(1, 5) for c in range(1, 5)]
+    G.add_nodes_from(cells)
+
+    # Helper to check same block (2x2)
+    def same_block(r1, c1, r2, c2):
+        return ((r1 - 1) // 2 == (r2 - 1) // 2) and ((c1 - 1) // 2 == (c2 - 1) // 2)
+
+    # Add edges for row/column/block conflicts
+    for i, (r1, c1) in enumerate(cells):
+        for r2, c2 in cells[i + 1 :]:
+            if r1 == r2 or c1 == c2 or same_block(r1, c1, r2, c2):
+                G.add_edge((r1, c1), (r2, c2))
+
+    return G
+
+
+def main():
+    G = build_sudoku_graph()
+
+    # Layout: use spring layout, but you can also fix positions to look like a grid
+    pos = {}
+    for r in range(1, 5):
+        for c in range(1, 5):
+            # place like a 4x4 grid
+            pos[(r, c)] = (c, -r)  # x=c, y=-r just for nicer orientation
+
+    # Color nodes: givens vs empty cells
+    given_nodes = []
+    empty_nodes = []
+    for r in range(1, 5):
+        for c in range(1, 5):
+            if PUZZLE[r - 1][c - 1] == 0:
+                empty_nodes.append((r, c))
+            else:
+                given_nodes.append((r, c))
+
+    plt.figure(figsize=(6, 6))
+
+    # Draw edges
+    nx.draw_networkx_edges(G, pos)
+
+    # Draw empty cells
+    nx.draw_networkx_nodes(
+        G, pos, nodelist=empty_nodes, node_size=800
+    )
+
+    # Draw given cells in a different style
+    nx.draw_networkx_nodes(
+        G, pos, nodelist=given_nodes, node_size=800
+    )
+
+    # Node labels: show (r,c) or the given digit if you prefer
+    labels = {}
+    for r in range(1, 5):
+        for c in range(1, 5):
+            val = PUZZLE[r - 1][c - 1]
+            if val == 0:
+                labels[(r, c)] = f"({r},{c})"
+            else:
+                labels[(r, c)] = str(val)  # show the given digit
+
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=10)
+
+    plt.title("4x4 Sudoku Constraint Graph")
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+
+
+if _name_ == "_main_":
+    main()

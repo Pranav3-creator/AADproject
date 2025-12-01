@@ -1,0 +1,221 @@
+"""
+DPLL SAT solver + simple benchmarking + plots.
+
+- Uses your clean DPLL implementation.
+- Generates random 3-SAT instances in CNF (list of list of ints).
+- Measures runtime and nodes explored.
+- Produces two graphs:
+    1) nodes explored vs number of variables
+    2) runtime vs number of variables
+"""
+
+import time
+import random
+from typing import List, Dict, Tuple, Optional
+from collections import Counter
+
+import matplotlib.pyplot as plt
+
+
+# =========================
+#  DPLL SAT SOLVER
+# =========================
+
+Clause = List[int]
+CNF = List[Clause]
+Assignment = Dict[int, bool]
+
+
+def apply_literal(clauses: CNF, lit: int) -> Optional[CNF]:
+    """
+    Apply a literal assignment to the clause set.
+    Returns None if a conflict is created.
+    """
+    new_clauses = []
+
+    for clause in clauses:
+        if lit in clause:
+            continue  # Clause satisfied
+
+        if -lit in clause:
+            reduced = [x for x in clause if x != -lit]
+            if not reduced:
+                return None  # Conflict
+            new_clauses.append(reduced)
+        else:
+            new_clauses.append(clause)
+
+    return new_clauses
+
+
+def unit_propagate(
+    clauses: CNF, assignment: Assignment
+) -> Tuple[Optional[CNF], Assignment]:
+    """
+    Standard unit clause propagation.
+    """
+    new_assignment = dict(assignment)
+
+    while True:
+        units = [c[0] for c in clauses if len(c) == 1]
+        if not units:
+            return clauses, new_assignment
+
+        lit = units[0]
+        var = abs(lit)
+        val = lit > 0
+
+        if var in new_assignment and new_assignment[var] != val:
+            return None, new_assignment
+
+        new_assignment[var] = val
+        clauses = apply_literal(clauses, lit)
+
+        if clauses is None:
+            return None, new_assignment
+
+
+def pure_literal_elimination(
+    clauses: CNF, assignment: Assignment
+) -> Tuple[CNF, Assignment]:
+    """
+    Eliminate pure literals.
+    """
+    all_lits = set(l for c in clauses for l in c)
+    pures = {l for l in all_lits if -l not in all_lits}
+
+    if not pures:
+        return clauses, assignment
+
+    new_assignment = dict(assignment)
+    for lit in pures:
+        new_assignment[abs(lit)] = lit > 0
+
+    new_clauses = [c for c in clauses if not any(l in pures for l in c)]
+    return new_clauses, new_assignment
+
+
+def choose_variable(clauses: CNF, assignment: Assignment) -> int:
+    """
+    Pick the next branching variable using a simple frequency heuristic.
+    """
+    counter = Counter()
+
+    for clause in clauses:
+        for lit in clause:
+            v = abs(lit)
+            if v not in assignment:
+                counter[v] += 1
+
+    return counter.most_common(1)[0][0]
+
+
+def dpll(clauses: CNF, assignment: Assignment) -> Tuple[bool, Assignment, int]:
+    """
+    Recursive DPLL search.
+    Returns (sat?, model, nodes_explored)
+    """
+    clauses, assignment = unit_propagate(clauses, assignment)
+    if clauses is None:
+        return False, assignment, 1
+
+    clauses, assignment = pure_literal_elimination(clauses, assignment)
+
+    if not clauses:
+        return True, assignment, 1
+
+    var = choose_variable(clauses, assignment)
+    nodes = 1
+
+    for val in (True, False):
+        lit = var if val else -var
+        new_assign = dict(assignment)
+        new_assign[var] = val
+
+        reduced = apply_literal(clauses, lit)
+        if reduced is None:
+            nodes += 1
+            continue
+
+        sat, model, explored = dpll(reduced, new_assign)
+        nodes += explored
+
+        if sat:
+            return True, model, nodes
+
+    return False, assignment, nodes
+
+
+def dpll_solve(n_vars: int, clauses: CNF) -> Tuple[bool, Assignment, int]:
+    """
+    Entry point for SAT solving.
+    """
+    return dpll(clauses, {})
+
+
+# =========================
+#  CNF GENERATOR
+# =========================
+
+def gen_random_3sat_dimacs(n_vars: int, n_clauses: int) -> CNF:
+    """
+    Generate a random 3-SAT instance with literals as +/- integers.
+    """
+    cnf: CNF = []
+    for _ in range(n_clauses):
+        clause = set()
+        while len(clause) < 3:
+            v = random.randint(1, n_vars)
+            sign = random.choice([-1, 1])
+            clause.add(sign * v)
+        cnf.append(list(clause))
+    return cnf
+
+
+# =========================
+#  BENCHMARK & PLOTS
+# =========================
+
+def main():
+    random.seed(0)
+
+    var_sizes = list(range(5, 21))  # n = 5..20 variables
+    nodes_list: List[int] = []
+    time_list: List[float] = []
+
+    for n in var_sizes:
+        m = int(4.2 * n)  # clauses ~ 4.2 * n (near phase transition)
+        cnf = gen_random_3sat_dimacs(n, m)
+
+        # Time DPLL on this instance
+        t0 = time.time()
+        sat, model, nodes = dpll_solve(n, cnf)
+        t1 = time.time()
+
+        elapsed = t1 - t0
+        nodes_list.append(nodes)
+        time_list.append(elapsed)
+
+        print(f"n={n:2d}, m={m:3d}, sat={sat}, nodes={nodes}, time={elapsed:.6f}s")
+
+    # Plot 1: nodes vs n
+    plt.figure()
+    plt.plot(var_sizes, nodes_list, marker="o")
+    plt.xlabel("Number of variables (n)")
+    plt.ylabel("DPLL nodes explored")
+    plt.title("DPLL SAT solver: nodes vs problem size")
+    plt.grid(True)
+
+    # Plot 2: time vs n
+    plt.figure()
+    plt.plot(var_sizes, time_list, marker="o")
+    plt.xlabel("Number of variables (n)")
+    plt.ylabel("Runtime (seconds)")
+    plt.title("DPLL SAT solver: runtime vs problem size")
+    plt.grid(True)
+
+    plt.show()
+
+
+if _name_ == "_main_":
+    main()

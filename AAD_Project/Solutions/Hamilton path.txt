@@ -1,0 +1,213 @@
+"""
+Hamiltonian Path: backtracking vs Held–Karp
+Benchmark + plots.
+
+- Graphs are simple undirected graphs, stored as adjacency dicts.
+- We generate random graphs with edge probability p.
+- For each n, we run both algorithms and record:
+    * ops  = rough operation count
+    * time = wall-clock runtime
+- Two plots:
+    1) ops vs n  (both algorithms)
+    2) time vs n (both algorithms)
+"""
+
+import random
+import time
+from typing import Dict, Set, List, Tuple, Optional
+
+import matplotlib.pyplot as plt
+
+
+# =========================
+#  Graph Type & Generator
+# =========================
+
+Graph = Dict[int, Set[int]]
+
+
+def random_graph(n: int, p: float) -> Graph:
+    """
+    Generate a random undirected graph on vertices {0..n-1}
+    where each edge appears independently with probability p.
+    """
+    g: Graph = {i: set() for i in range(n)}
+    for i in range(n):
+        for j in range(i + 1, n):
+            if random.random() < p:
+                g[i].add(j)
+                g[j].add(i)
+    return g
+
+
+# =========================
+#  Backtracking Hamiltonian Path
+# =========================
+
+def hampath_backtracking(g: Graph) -> Tuple[bool, List[int], int]:
+    """
+    Exponential backtracking search for Hamiltonian path.
+    Returns (exists?, path, ops).
+    """
+    n = len(g)
+    ops = 0
+
+    def dfs(v: int, visited: Set[int], path: List[int]) -> Optional[List[int]]:
+        nonlocal ops
+        ops += 1
+
+        if len(path) == n:
+            return path.copy()
+
+        for u in g[v]:
+            if u not in visited:
+                visited.add(u)
+                path.append(u)
+                res = dfs(u, visited, path)
+                if res is not None:
+                    return res
+                path.pop()
+                visited.remove(u)
+
+        return None
+
+    for start in g.keys():
+        visited = {start}
+        path = [start]
+        res = dfs(start, visited, path)
+        if res is not None:
+            return True, res, ops
+
+    return False, [], ops
+
+
+# =========================
+#  Held–Karp DP Hamiltonian Path
+# =========================
+
+def hampath_held_karp(g: Graph) -> Tuple[bool, List[int], int]:
+    """
+    Held–Karp dynamic programming algorithm for Hamiltonian path.
+    Returns (exists?, path, ops).
+    """
+    nodes = list(g.keys())
+    n = len(nodes)
+    ops = 0
+
+    if n == 0:
+        return True, [], ops
+    if n == 1:
+        return True, [nodes[0]], ops
+
+    index = {v: i for i, v in enumerate(nodes)}
+    SIZE = 1 << n
+
+    # dp[mask][j] = predecessor index for path covering 'mask' and ending at j, or None
+    dp: List[List[Optional[int]]] = [[None] * n for _ in range(SIZE)]
+
+    # Single-vertex paths
+    for j in range(n):
+        dp[1 << j][j] = -1
+
+    for mask in range(SIZE):
+        for j in range(n):
+            if dp[mask][j] is None:
+                continue
+            ops += 1
+            v = nodes[j]
+            for nb in g[v]:
+                k = index[nb]
+                if mask & (1 << k):
+                    continue
+                new_mask = mask | (1 << k)
+                if dp[new_mask][k] is None:
+                    dp[new_mask][k] = j
+
+    FULL = (1 << n) - 1
+    end = None
+    for j in range(n):
+        if dp[FULL][j] is not None:
+            end = j
+            break
+
+    if end is None:
+        return False, [], ops
+
+    # Reconstruct path
+    path_idx: List[int] = []
+    cur = end
+    mask = FULL
+    while cur != -1:
+        path_idx.append(cur)
+        prev = dp[mask][cur]
+        mask &= ~(1 << cur)
+        cur = prev
+
+    path_idx.reverse()
+    path = [nodes[i] for i in path_idx]
+    return True, path, ops
+
+
+# =========================
+#  Benchmark & Plots
+# =========================
+
+def main():
+    random.seed(0)
+
+    # Try small sizes; both algorithms are exponential.
+    sizes = list(range(5, 11))  # n = 5..10
+
+    bt_ops = []
+    bt_time = []
+    hk_ops = []
+    hk_time = []
+
+    for n in sizes:
+        g = random_graph(n, p=0.5)
+
+        # Backtracking
+        t0 = time.time()
+        sat_bt, path_bt, ops_bt = hampath_backtracking(g)
+        t1 = time.time()
+
+        # Held–Karp
+        t2 = time.time()
+        sat_hk, path_hk, ops_hk = hampath_held_karp(g)
+        t3 = time.time()
+
+        bt_ops.append(ops_bt)
+        bt_time.append(t1 - t0)
+        hk_ops.append(ops_hk)
+        hk_time.append(t3 - t2)
+
+        print(
+            f"n={n:2d} | BT: sat={sat_bt}, ops={ops_bt}, time={t1 - t0:.6f}s | "
+            f"HK: sat={sat_hk}, ops={ops_hk}, time={t3 - t2:.6f}s"
+        )
+
+    # Plot 1: operations vs n
+    plt.figure()
+    plt.plot(sizes, bt_ops, marker="o", label="Backtracking")
+    plt.plot(sizes, hk_ops, marker="o", label="Held–Karp")
+    plt.xlabel("Number of vertices (n)")
+    plt.ylabel("Operation count (ops)")
+    plt.title("Hamiltonian Path: ops vs problem size")
+    plt.legend()
+    plt.grid(True)
+
+    # Plot 2: runtime vs n
+    plt.figure()
+    plt.plot(sizes, bt_time, marker="o", label="Backtracking")
+    plt.plot(sizes, hk_time, marker="o", label="Held–Karp")
+    plt.xlabel("Number of vertices (n)")
+    plt.ylabel("Runtime (seconds)")
+    plt.title("Hamiltonian Path: runtime vs problem size")
+    plt.legend()
+    plt.grid(True)
+
+    plt.show()
+
+
+if _name_ == "_main_":
+    main()

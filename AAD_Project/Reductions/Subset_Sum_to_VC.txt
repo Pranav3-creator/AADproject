@@ -1,0 +1,251 @@
+"""
+Demo: Subset Sum  ->  SAT (parity)  ->  3-SAT  ->  Vertex Cover
+and draw the resulting Vertex Cover graph.
+
+NOTE (for report / theory):
+- The Subset Sum -> SAT step here uses a parity-based encoding
+  and is NOT a full many-one reduction for Subset Sum.
+- It is suitable as a small illustrative demo for how
+  "number problems" can be turned into SAT, and then into graphs.
+"""
+
+from typing import List, Dict, Set, Tuple
+import matplotlib.pyplot as plt
+import networkx as nx
+
+
+# ====================================================
+#  Subset Sum -> SAT (parity-based demo encoding)
+# ====================================================
+
+def subset_sum_parity_encoding(nums: List[int], target: int) -> Tuple[int, List[List[int]]]:
+    """
+    Demo SAT encoding enforcing parity of subset sum bits.
+    Not a full many-one reduction, but good for tiny demo.
+
+    Variables:
+      - select[i]  : choose element nums[i]
+      - sum_bits[k]: parity bit of sum at bit k
+      - plus aux vars for XOR gates
+
+    Returns:
+        (num_vars, clauses) with clauses in CNF (each clause size 1 or 3).
+    """
+    clauses: List[List[int]] = []
+    var_count = 0
+
+    def fresh_var() -> int:
+        nonlocal var_count
+        var_count += 1
+        return var_count
+
+    def xor_gate(a: int, b: int, out: int):
+        # out = a XOR b
+        clauses.extend([
+            [-a, -b, -out],
+            [ a,  b, -out],
+            [ a, -b,  out],
+            [-a,  b,  out],
+        ])
+
+    n = len(nums)
+    # Bit-width: enough for all nums and target
+    width = max(target.bit_length(), max((x.bit_length() for x in nums), default=1)) + 1
+
+    # Selection variables
+    select = [fresh_var() for _ in range(n)]
+    # Sum parity bits
+    sum_bits = [fresh_var() for _ in range(width)]
+
+    # For each bit position, XOR all selected contributors and force target bit
+    for bit in range(width):
+        # Which selections contribute to this bit?
+        contributors = []
+        for i, val in enumerate(nums):
+            if (val >> bit) & 1:
+                contributors.append(select[i])
+
+        if not contributors:
+            # No contributors: sum_bits[bit] is just a constant = target_bit
+            if (target >> bit) & 1:
+                clauses.append([sum_bits[bit]])       # sum_bit = True
+            else:
+                clauses.append([-sum_bits[bit]])      # sum_bit = False
+            continue
+
+        # XOR chain over contributors
+        cur = contributors[0]
+        for nxt in contributors[1:]:
+            tmp = fresh_var()
+            xor_gate(cur, nxt, tmp)
+            cur = tmp
+
+        # XOR with target bit via a constant var
+        const = fresh_var()
+        if (target >> bit) & 1:
+            clauses.append([const])           # const = True
+        else:
+            clauses.append([-const])          # const = False
+
+        xor_gate(cur, const, sum_bits[bit])
+
+    return var_count, clauses
+
+
+# ====================================================
+#  Normalize CNF to EXACT 3-SAT (length-3 clauses)
+# ====================================================
+
+def cnf_to_3sat_equiv(n_vars: int, clauses: List[List[int]]) -> Tuple[int, List[List[int]]]:
+    """
+    Turn a CNF with clause sizes 1 or 3 into strict 3-SAT by duplicating literals:
+      - (l)   -> (l ∨ l ∨ l)
+      - (l1 ∨ l2) -> (l1 ∨ l2 ∨ l2)  [not needed here, but shown for completeness]
+      - (l1 ∨ l2 ∨ l3) stays as-is.
+
+    This preserves logical meaning (equisatisfiable) and produces exactly 3-literal clauses.
+    """
+    new_clauses: List[List[int]] = []
+
+    for c in clauses:
+        if len(c) == 3:
+            new_clauses.append(c)
+        elif len(c) == 1:
+            l = c[0]
+            new_clauses.append([l, l, l])
+        elif len(c) == 2:
+            l1, l2 = c
+            new_clauses.append([l1, l2, l2])
+        else:
+            raise ValueError("Expected clause sizes 1 or 3 in this pipeline.")
+
+    return n_vars, new_clauses
+
+
+# ====================================================
+#  3-SAT -> Vertex Cover reduction (classic)
+# ====================================================
+
+Graph = Dict[int, Set[int]]
+
+
+def add_edge(g: Graph, u: int, v: int):
+    g.setdefault(u, set()).add(v)
+    g.setdefault(v, set()).add(u)
+
+
+def reduce_3sat_to_vc(n_vars: int, clauses: List[List[int]]) -> Tuple[Graph, int]:
+    """
+    Classic 3-SAT -> Vertex Cover reduction.
+    clauses: must all be of length 3 (3-CNF).
+    Returns (graph, k).
+    """
+    for c in clauses:
+        if len(c) != 3:
+            raise ValueError("All clauses must have exactly 3 literals.")
+
+    g: Graph = {}
+    node_id = 1
+    var_pos: Dict[int, int] = {}
+    var_neg: Dict[int, int] = {}
+
+    # Variable gadgets
+    for v in range(1, n_vars + 1):
+        p = node_id
+        n = node_id + 1
+        node_id += 2
+
+        var_pos[v] = p
+        var_neg[v] = n
+
+        add_edge(g, p, n)
+
+    # Clause gadgets: triangles
+    clause_info: List[Tuple[List[int], List[int]]] = []
+    for clause in clauses:
+        a = node_id
+        b = node_id + 1
+        c = node_id + 2
+        node_id += 3
+
+        add_edge(g, a, b)
+        add_edge(g, b, c)
+        add_edge(g, a, c)
+
+        clause_info.append(([a, b, c], clause))
+
+    # Consistency edges: clause literal nodes connect to opposite variable literal
+    for (ids, lits) in clause_info:
+        for node, lit in zip(ids, lits):
+            v = abs(lit)
+            if lit > 0:
+                # literal is x_v, connect to node for ¬x_v
+                target = var_neg[v]
+            else:
+                # literal is ¬x_v, connect to node for x_v
+                target = var_pos[v]
+            add_edge(g, node, target)
+
+    k = n_vars + 2 * len(clauses)
+    return g, k
+
+
+# ====================================================
+#  Build VC graph for a tiny Subset Sum instance
+# ====================================================
+
+def build_subsetsum_to_vc_graph():
+    # Tiny Subset Sum instance for demo
+    nums = [3, 5, 6]
+    target = 8
+
+    print("Subset Sum instance:")
+    print("  nums  =", nums)
+    print("  target =", target)
+
+    # 1) Subset Sum -> SAT (parity demo)
+    n_vars, clauses = subset_sum_parity_encoding(nums, target)
+    print("\nSAT parity encoding:")
+    print("  #vars   =", n_vars)
+    print("  #clauses:", len(clauses))
+
+    # 2) CNF -> 3-SAT
+    n_3vars, clauses_3sat = cnf_to_3sat_equiv(n_vars, clauses)
+    print("\nConverted to 3-SAT:")
+    print("  #vars   =", n_3vars)
+    print("  #clauses:", len(clauses_3sat))
+
+    # 3) 3-SAT -> Vertex Cover
+    g, k = reduce_3sat_to_vc(n_3vars, clauses_3sat)
+    print("\nVertex Cover instance:")
+    print("  |V| =", len(g), ", k =", k)
+
+    return g, k
+
+
+# ====================================================
+#  Drawing the VC Graph
+# ====================================================
+
+def draw_vc_graph(g: Graph, k: int):
+    G = nx.Graph()
+    for u in g:
+        for v in g[u]:
+            if u < v:
+                G.add_edge(u, v)
+
+    pos = nx.spring_layout(G, seed=0)  # simple layout
+
+    plt.figure(figsize=(10, 7))
+    nx.draw(G, pos, with_labels=True)
+    plt.title(f"Vertex Cover graph from Subset Sum demo (k = {k})")
+    plt.show()
+
+
+# ====================================================
+#  Main
+# ====================================================
+
+if _name_ == "_main_":
+    graph, k = build_subsetsum_to_vc_graph()
+    draw_vc_graph(graph, k)

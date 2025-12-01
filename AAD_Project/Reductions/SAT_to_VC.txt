@@ -1,0 +1,136 @@
+"""
+Visual demonstration of the classic reduction:
+3-SAT  -->  Vertex Cover
+
+This script:
+1. Defines the 3-SAT -> VC reduction
+2. Builds the VC graph
+3. Draws the resulting graph using NetworkX + Matplotlib
+"""
+
+from typing import List, Dict, Set, Tuple
+import networkx as nx
+import matplotlib.pyplot as plt
+
+
+# =========================
+#  Local add_edge helper
+# =========================
+
+def add_edge(g: Dict[int, Set[int]], u: int, v: int):
+    g.setdefault(u, set()).add(v)
+    g.setdefault(v, set()).add(u)
+
+
+# =========================
+#  3-SAT -> Vertex Cover Reduction
+# =========================
+
+def reduce_3sat_to_vc(n_vars: int, clauses: List[List[int]]):
+    g: Dict[int, Set[int]] = {}
+    node_id = 1
+    var_node_pos = {}
+    var_node_neg = {}
+
+    # Variable gadgets (xi -- ¬xi)
+    for v in range(1, n_vars + 1):
+        p, n = node_id, node_id + 1
+        var_node_pos[v] = p
+        var_node_neg[v] = n
+        add_edge(g, p, n)
+        node_id += 2
+
+    # Clause gadgets (triangles)
+    clause_nodes = []
+    for c in clauses:
+        if len(c) != 3:
+            raise ValueError("Each clause must have exactly 3 literals.")
+
+        ids = [node_id, node_id + 1, node_id + 2]
+        node_id += 3
+
+        # Triangle
+        add_edge(g, ids[0], ids[1])
+        add_edge(g, ids[1], ids[2])
+        add_edge(g, ids[0], ids[2])
+
+        clause_nodes.append((ids, c))
+
+    # Consistency edges
+    for ids, lits in clause_nodes:
+        for nid, lit in zip(ids, lits):
+            v = abs(lit)
+            is_pos = (lit > 0)
+            target = var_node_neg[v] if is_pos else var_node_pos[v]
+            add_edge(g, nid, target)
+
+    k = n_vars + 2 * len(clauses)
+    return g, k, var_node_pos, var_node_neg
+
+
+# =========================
+#  Example 3-SAT Instance
+# =========================
+
+# (x1 ∨ ¬x2 ∨ x3) ∧ (¬x1 ∨ x2 ∨ ¬x3)
+n_vars = 3
+clauses = [
+    [1, -2, 3],
+    [-1, 2, -3],
+]
+
+
+# =========================
+#  Build VC Graph
+# =========================
+
+g, k, pos_nodes, neg_nodes = reduce_3sat_to_vc(n_vars, clauses)
+
+print("Vertex Cover Threshold k =", k)
+print("Graph adjacency list:")
+for u in g:
+    print(u, "->", g[u])
+
+
+# =========================
+#  Convert to NetworkX Graph
+# =========================
+
+G = nx.Graph()
+for u in g:
+    for v in g[u]:
+        G.add_edge(u, v)
+
+
+# =========================
+#  Position Nodes Nicely
+# =========================
+
+pos = {}
+
+# Place variable gadgets on left
+y = 0
+for v in range(1, n_vars + 1):
+    pos[pos_nodes[v]] = (0, y)
+    pos[neg_nodes[v]] = (1, y)
+    y -= 1
+
+# Place clause gadgets on right
+x_base = 4
+y = 0
+for i in range(len(clauses)):
+    a, b, c = 2 * n_vars + 1 + 3 * i, 2 * n_vars + 2 + 3 * i, 2 * n_vars + 3 + 3 * i
+    pos[a] = (x_base, y)
+    pos[b] = (x_base + 1, y + 0.5)
+    pos[c] = (x_base + 1, y - 0.5)
+    y -= 2
+
+
+# =========================
+#  Draw the Graph
+# =========================
+
+plt.figure(figsize=(10, 6))
+nx.draw(G, pos, with_labels=True)
+plt.title("3-SAT  →  Vertex Cover Reduction Graph")
+plt.show()

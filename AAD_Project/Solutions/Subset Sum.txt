@@ -1,0 +1,193 @@
+"""
+Subset Sum benchmarking: brute force vs meet-in-the-middle (Horowitz–Sahni).
+
+This script:
+- Implements two Subset Sum solvers:
+    1) subset_sum_bruteforce
+    2) subset_sum_mitm  (meet-in-the-middle)
+- Generates random integer instances.
+- Measures:
+    * ops  = rough operation count
+    * time = wall-clock runtime
+- Produces two plots:
+    1) ops vs n  (both algorithms)
+    2) time vs n (both algorithms)
+"""
+
+import random
+import time
+from typing import List, Tuple
+
+import matplotlib.pyplot as plt
+
+
+# =========================
+#  Subset Sum Algorithms
+# =========================
+
+def subset_sum_bruteforce(nums: List[int], target: int) -> Tuple[bool, List[int], int]:
+    """
+    Exhaustively try all 2^n subsets.
+
+    Returns:
+        (found?, subset_values, ops)
+    """
+    n = len(nums)
+    ops = 0
+
+    for mask in range(1 << n):
+        total = 0
+        subset = []
+        for i in range(n):
+            if mask & (1 << i):
+                total += nums[i]
+                subset.append(nums[i])
+        ops += 1
+        if total == target:
+            return True, subset, ops
+
+    return False, [], ops
+
+
+def subset_sum_mitm(nums: List[int], target: int) -> Tuple[bool, List[int], int]:
+    """
+    Horowitz–Sahni meet-in-the-middle algorithm.
+
+    Split array into two halves A and B.
+    Enumerate subset sums of each half, then
+    search for complementary pairs.
+    """
+    n = len(nums)
+    ops = 0
+
+    A = nums[: n // 2]
+    B = nums[n // 2 :]
+
+    sums_A = []
+    for mask in range(1 << len(A)):
+        total = 0
+        for i in range(len(A)):
+            if mask & (1 << i):
+                total += A[i]
+        sums_A.append((total, mask))
+        ops += 1
+
+    sums_B = []
+    for mask in range(1 << len(B)):
+        total = 0
+        for i in range(len(B)):
+            if mask & (1 << i):
+                total += B[i]
+        sums_B.append((total, mask))
+        ops += 1
+
+    sums_B.sort()
+    only_sums_B = [s for s, _ in sums_B]
+
+    # binary search manually to avoid extra imports
+    def bin_search(arr: List[int], x: int) -> int:
+        lo, hi = 0, len(arr)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            if arr[mid] < x:
+                lo = mid + 1
+            else:
+                hi = mid
+        return lo
+
+    for sA, mA in sums_A:
+        need = target - sA
+        idx = bin_search(only_sums_B, need)
+        if idx < len(only_sums_B) and only_sums_B[idx] == need:
+            _, mB = sums_B[idx]
+            subset = []
+
+            for i in range(len(A)):
+                if mA & (1 << i):
+                    subset.append(A[i])
+            for i in range(len(B)):
+                if mB & (1 << i):
+                    subset.append(B[i])
+
+            return True, subset, ops
+
+    return False, [], ops
+
+
+# =========================
+#  Instance Generator
+# =========================
+
+def gen_instance(n: int) -> Tuple[List[int], int]:
+    """
+    Generate a random Subset Sum instance of size n.
+
+    Numbers are positive ints; target is about half the total sum.
+    """
+    nums = [random.randint(1, 100) for _ in range(n)]
+    target = sum(nums) // 2
+    return nums, target
+
+
+# =========================
+#  Benchmark & Plotting
+# =========================
+
+def main():
+    random.seed(0)
+
+    sizes = list(range(8, 27, 2))  # n = 8,10,...,26
+
+    bf_ops = []
+    bf_time = []
+    mitm_ops = []
+    mitm_time = []
+
+    for n in sizes:
+        nums, target = gen_instance(n)
+
+        # brute force
+        t0 = time.time()
+        found_bf, subset_bf, ops_bf = subset_sum_bruteforce(nums, target)
+        t1 = time.time()
+
+        # meet-in-the-middle
+        t2 = time.time()
+        found_mitm, subset_mitm, ops_mitm = subset_sum_mitm(nums, target)
+        t3 = time.time()
+
+        bf_ops.append(ops_bf)
+        bf_time.append(t1 - t0)
+        mitm_ops.append(ops_mitm)
+        mitm_time.append(t3 - t2)
+
+        print(
+            f"n={n:2d} | BF: found={found_bf}, ops={ops_bf}, time={t1 - t0:.6f}s | "
+            f"MITM: found={found_mitm}, ops={ops_mitm}, time={t3 - t2:.6f}s"
+        )
+
+    # Plot 1: operations vs n
+    plt.figure()
+    plt.plot(sizes, bf_ops, marker="o", label="Brute force")
+    plt.plot(sizes, mitm_ops, marker="o", label="Meet-in-the-middle")
+    plt.xlabel("Number of elements (n)")
+    plt.ylabel("Operation count (ops)")
+    plt.title("Subset Sum: ops vs problem size")
+    plt.legend()
+    plt.grid(True)
+
+    # Plot 2: runtime vs n
+    plt.figure()
+    plt.plot(sizes, bf_time, marker="o", label="Brute force")
+    plt.plot(sizes, mitm_time, marker="o", label="Meet-in-the-middle")
+    plt.xlabel("Number of elements (n)")
+    plt.ylabel("Runtime (seconds)")
+    plt.title("Subset Sum: runtime vs problem size")
+    plt.legend()
+    plt.grid(True)
+
+    plt.show()
+
+
+if _name_ == "_main_":
+    main()
