@@ -1,0 +1,154 @@
+"""
+Minesweeper constraint graph visualizer (small board example).
+
+Representation:
+- -1 = unknown covered cell (may or may not be a mine)
+- 0..8 = revealed numbered clue
+
+Constraint graph:
+- Variable nodes: each unknown cell (r,c)
+- Constraint nodes: each numbered cell (r,c) with value > 0
+- Edge between clue (r,c) and unknown (r',c') if (r',c') is in the 8-neighborhood of (r,c)
+
+Each clue induces an equation:
+  sum(adjacent mines) = clue_value
+
+This graph makes those relationships explicit.
+"""
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+# -----------------------------
+#  Example Minesweeper position
+# -----------------------------
+# -1 = unknown (could be mine)
+#  0..8 = revealed clue
+BOARD = [
+    [1, 2, -1, 1],
+    [1, -1, 3, 2],
+    [0, 1, -1, 1],
+    [0, 1, 1, 1],
+]
+
+
+def in_bounds(r, c, rows, cols):
+    return 0 <= r < rows and 0 <= c < cols
+
+
+def neighbors(r, c, rows, cols):
+    """All 8 neighbors within bounds."""
+    for dr in [-1, 0, 1]:
+        for dc in [-1, 0, 1]:
+            if dr == 0 and dc == 0:
+                continue
+            nr, nc = r + dr, c + dc
+            if in_bounds(nr, nc, rows, cols):
+                yield nr, nc
+
+
+def build_minesweeper_graph(board):
+    """
+    Build the Minesweeper constraint graph (bipartite).
+
+    Variable nodes: ("var", r, c) for unknown cells board[r][c] == -1
+    Constraint nodes: ("clue", r, c) for numbered cells board[r][c] > 0
+    Edge between ("clue", r, c) and ("var", r2, c2) if (r2,c2) is adjacent to (r,c).
+    """
+    rows = len(board)
+    cols = len(board[0])
+
+    G = nx.Graph()
+
+    # Add variable and clue nodes
+    var_nodes = []
+    clue_nodes = []
+
+    for r in range(rows):
+        for c in range(cols):
+            val = board[r][c]
+            if val == -1:
+                node = ("var", r, c)
+                var_nodes.append(node)
+                G.add_node(node, kind="var")
+            elif val > 0:
+                node = ("clue", r, c)
+                clue_nodes.append(node)
+                G.add_node(node, kind="clue")
+
+    # Add edges between clues and adjacent variables
+    for r in range(rows):
+        for c in range(cols):
+            val = board[r][c]
+            if val > 0:
+                clue_node = ("clue", r, c)
+                for nr, nc in neighbors(r, c, rows, cols):
+                    if board[nr][nc] == -1:
+                        var_node = ("var", nr, nc)
+                        if var_node in G:
+                            G.add_edge(clue_node, var_node)
+
+    return G, var_nodes, clue_nodes
+
+
+def main():
+    board = BOARD
+    rows = len(board)
+    cols = len(board[0])
+
+    G, var_nodes, clue_nodes = build_minesweeper_graph(board)
+
+    # Layout: place nodes roughly on a grid but with a small vertical offset
+    pos = {}
+
+    # Variables slightly lower (y - 0.1), clues slightly higher (y + 0.1)
+    for kind, nodes, y_offset in [
+        ("var", var_nodes, -0.1),
+        ("clue", clue_nodes, +0.1),
+    ]:
+        for _, r, c in nodes:
+            # x = c, y = -r for grid-like layout
+            pos[(kind, r, c)] = (c, -r + y_offset)
+
+    plt.figure(figsize=(6, 6))
+
+    # Draw edges
+    nx.draw_networkx_edges(G, pos)
+
+    # Draw variable (unknown) nodes
+    nx.draw_networkx_nodes(
+        G,
+        pos,
+        nodelist=var_nodes,
+        node_shape="o",
+        node_size=800,
+    )
+
+    # Draw clue (number) nodes
+    nx.draw_networkx_nodes(
+        G,
+        pos,
+        nodelist=clue_nodes,
+        node_shape="s",
+        node_size=800,
+    )
+
+    # Labels
+    labels = {}
+    for node in G.nodes:
+        kind, r, c = node
+        if kind == "var":
+            labels[node] = "?"
+        else:  # clue
+            labels[node] = str(BOARD[r][c])
+
+    nx.draw_networkx_labels(G, pos, labels=labels, font_size=10)
+
+    plt.title("Minesweeper Constraint Graph (Variables vs Clues)")
+    plt.axis("off")
+    plt.tight_layout()
+    plt.show()
+
+
+if _name_ == "_main_":
+    main()
