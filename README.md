@@ -1016,8 +1016,10 @@ Ensure your project has these files:
 AAD_Project/   
    |-Bonus/
    |  |-Sudoku_and_Minisat
+   |  |-Minesweeper
    |-Bonus_Sol/
    |  |-Sudoku_sol.jpg
+   |  |-Minesweeper_sol.jpg
    |-Graphs/
    |  |-Hamilton_path.jpg
    |  |-SAT.jpg
