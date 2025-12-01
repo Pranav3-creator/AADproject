@@ -1,0 +1,457 @@
+## Data Structures Used
+
+This project uses a variety of core data structures to implement NP-complete problem solvers, reductions, and benchmarking. Below is a consolidated list, grouped by component.
+
+---
+
+### 1. Common / Global Data Structures
+
+- **list**
+  - Generic ordered container used everywhere:
+    - Lists of clauses, numbers, vertices, paths, benchmark records, etc.
+
+- **tuple**
+  - Immutable pair/tuple, e.g.:
+    - Edges (u, v)
+    - DP state keys
+    - Coordinate-like values
+
+- **set**
+  - Unordered collection with O(1) average membership:
+    - Visited vertices
+    - Vertex cover sets
+    - Subsets in algorithms
+    - Literal sets in SAT preprocessing
+
+- **dict (hash map)**
+  - Mapping keys → values:
+    - Variable → truth value (SAT model)
+    - Vertex → neighbors (graphs)
+    - DP state → boolean / path
+    - Node → label/position (plots)
+
+- **2D list (matrix)**
+  - Grids and tables:
+    - Sudoku boards: grid[row][col]
+    - Optional DP tables
+    - General small matrices
+
+- **str**
+  - Used for:
+    - DIMACS CNF representation
+    - Logging and messages
+    - File contents for exporting SAT instances
+
+---
+
+### 2. SAT Solver (solvers/sat.py)
+
+- *Clauses:* list[list[int]]
+  - Each inner list is a clause in CNF:
+    - Example: [[1, 2, -3], [-1, 4]]
+    - 1 = x₁, -1 = ¬x₁
+
+- *Assignment / Model:* dict[int, bool]
+  - Maps variable index → True/False
+  - Example: {1: True, 2: False, 3: True}
+
+- *Literal Collections:* set[int] and list[int]
+  - Used in:
+    - Unit propagation
+    - Pure literal elimination
+
+---
+
+### 3. Vertex Cover (solvers/vertex_cover.py)
+
+- *Graph:* dict[int, set[int]]
+  - Adjacency list representation:
+    - Key: vertex
+    - Value: set of neighbors
+    - Example: {1: {2, 3}, 2: {1}, 3: {1}}
+
+- *Vertex Cover:* set[int]
+  - Set of chosen vertices that cover all edges.
+
+- *Edges:* tuple[int, int]
+  - Returned by helpers like any_edge(g).
+
+---
+
+### 4. Hamiltonian Path (solvers/hampath.py)
+
+- *Graph:* dict[int, set[int]]
+  - Same adjacency list structure as Vertex Cover.
+
+- *Path:* list[int]
+  - Sequence of vertices representing the current or final Hamiltonian path.
+
+- *Visited / Remaining Vertices:* set[int]
+  - Tracks which vertices have been used in backtracking.
+
+- *DP Table (Held–Karp style):* dict[tuple, bool or list[int]]
+  - Key: (current_vertex, visited_mask or visited_set)
+  - Value: boolean (exists) or corresponding path.
+
+- *Bitmasks (optional):* int
+  - Encodes visited set as bits when using bitmask DP.
+
+---
+
+### 5. Subset Sum (solvers/subsetsum.py)
+
+- *Numbers:* list[int]
+  - Input multiset S.
+
+- *Subsets (brute force):*
+  - Implicit via bit patterns or itertools.product.
+  - Sometimes materialized as list[int] or tuple[int, ...].
+
+- *Meet-in-the-Middle:*
+  - Split:
+    - left: list[int], right: list[int]
+  - Sum tables:
+    - left_sums: list[int] or list of (sum, subset_repr)
+    - right_sums: list[int]
+  - Lookup structure:
+    - dict[int, subset_repr] or set[int] for O(1) sum lookups.
+
+---
+
+### 6. 3-SAT → Vertex Cover Reduction (reductions/sat_to_vc.py)
+
+- *Graph:* dict[int, set[int]]
+  - Target Vertex Cover instance.
+
+- *Variable Node Maps:*
+  - pos_nodes: dict[int, int]
+    - Maps variable index → vertex id for positive literal xᵢ.
+  - neg_nodes: dict[int, int]
+    - Maps variable index → vertex id for negative literal ¬xᵢ.
+
+- *Clause Gadgets:*
+  - Clause vertices as integers:
+    - Triangles for each clause, connected via adjacency list.
+
+---
+
+### 7. Subset Sum → SAT Reduction (reductions/subsetsum_to_sat.py)
+
+- *SAT Variables:*
+  - n_vars: int – total number of SAT variables.
+
+- *Clauses:* list[list[int]]
+  - CNF encoding of sum constraints, carries, and parity.
+
+- *DIMACS CNF String:* str
+  - Exportable CNF for external SAT solvers.
+
+- *Indexing Maps (internal):*
+  - selection_var: dict[int, int]
+    - Maps subset index → SAT variable id.
+  - sum_bit_var: dict[tuple[int, int], int] or list[list[int]]
+    - Maps (position, bit) → SAT variable id for binary sum bits.
+
+---
+
+### 8. Sudoku → SAT Encoding (bonus/sudoku_sat.py)
+
+- *Puzzle Grid:* list[list[int]]
+  - 0 for empty, 1..n for fixed digits.
+
+- *SAT Variables (conceptual):*
+  - x[i][j][k] = “cell (i, j) has value k”
+  - Implemented via an encoding function:
+    - var_id = encode(i, j, k)
+
+- *Clauses:* list[list[int]]
+  - Encodes:
+    - Cell constraints
+    - Row/column constraints
+    - Block constraints
+    - Fixed clues
+
+- *Model:* dict[int, bool]
+  - Output from SAT solver.
+
+- *Decoded Solution:* list[list[int]]
+  - Final solved Sudoku grid.
+
+---
+
+### 9. Benchmarking & Plotting (bench/run.py, bench/plots.py)
+
+- *Benchmark Records:*
+  - Often stored as:
+    - list[dict[str, float/int]] or rows in CSV format.
+
+- *CSV Rows:*
+  - list[str or float or int]
+  - Written via Python’s csv module.
+
+- *Plot Data:*
+  - x_values: list[float or int]
+  - y_values: list[float or int]
+
+- *Matplotlib Objects:*
+  - Figure, Axes
+  - Internal to plotting functions; used for visualization only.
+
+---
+
+### 10. Summary Table
+
+| Component         | Main Data Structures                                                                 |
+|-------------------|---------------------------------------------------------------------------------------|
+| SAT solver        | list[list[int]] (clauses), dict[int,bool] (model), set[int] (literals)         |
+| Vertex cover      | dict[int,set[int]] (graph), set[int] (cover), tuple[int,int] (edges)           |
+| Hamiltonian path  | dict[int,set[int]] (graph), list[int] (path), set[int], dict[state, value]   |
+| Subset sum        | list[int] (numbers), dict[int,subset] / set[int] (sums), temporary subsets     |
+| 3-SAT → VC        | dict[int,set[int]] (graph), dict[int,int] (pos/neg nodes), clause vertex lists   |
+| SubsetSum → SAT   | list[list[int]] (clauses), dict[...] (var mapping), str (DIMACS)               |
+| Sudoku → SAT      | list[list[int]] (grid), list[list[int]] (clauses), dict[int,bool] (model)      |
+| Benchmarks/plots  | list[dict] / CSV rows, list[float/int] (series), Matplotlib figure/axes          |
+
+
+DATA STRUCTURES USED: SWEEP & SAT TO SWEEP
+
+
+This section describes all data structures used in the implementation of the
+MINESWEEPER (“SWEEP”) solver and the SAT → MINESWEEPER (“SAT TO SWEEP”) verifier.
+
+
+1. 2D List (Matrix) — Minesweeper Board
+
+
+Data Structure:
+    Python list of lists → list[list[int]]
+
+Example:
+    BOARD = [
+      [1, 2, -1, 1],
+      [1, -1, 3, 2],
+      [1, 2, -1, 1],
+      [0, 1, 1, 1],
+    ]
+
+Purpose:
+    - Represents the Minesweeper grid.
+    - -1 denotes unknown cells (variables).
+    - 0..8 denote revealed clue cells (constraints).
+
+Why Used:
+    - Natural representation of a 2D game board.
+    - Constant-time access: O(1) for board[r][c].
+    - Simple neighbor traversal.
+
+Space Complexity:
+    O(N), where N = number of cells.
+
+
+2. Python List — Unknown Cell Collection
+
+
+Data Structure:
+    list of tuples → list[(r, c)]
+
+Example:
+    unknowns = [(0,2), (1,1), (2,2)]
+
+Purpose:
+    - Stores all unknown cells (Boolean variables).
+    - Used to generate all possible mine assignments.
+
+Why Used:
+    - Maintains fixed indexing for Boolean enumeration.
+    - Works directly with itertools-style enumeration.
+
+Space Complexity:
+    O(K), where K = number of unknown cells.
+
+
+3. Python Tuple — Cell Coordinate Representation
+
+
+Data Structure:
+    (row, column) → (int, int)
+
+Examples:
+    (0,2), (1,1), (2,2)
+
+Purpose:
+    - Represents a single cell location.
+    - Used inside lists, sets, and graph nodes.
+
+Why Used:
+    - Immutable and hashable.
+    - Can be safely stored in sets and dictionaries.
+
+Space Complexity:
+    O(1) per tuple.
+
+
+4. Python Set — Mine Placement Storage
+
+
+Data Structure:
+    set[(r, c)]
+
+Example:
+    mines = {(0,2), (1,1), (2,2)}
+
+Purpose:
+    - Stores which unknown cells are assigned as mines.
+    - Used by the verifier for fast lookups.
+
+Why Used:
+    - O(1) average-time membership check.
+    - Much faster than searching a list.
+
+Space Complexity:
+    O(K), where K = number of mines.
+
+
+5. itertools.product — Boolean Assignment Generator
+
+
+Data Structure:
+    Lazy iterator (generator)
+
+Example:
+    product([0,1], repeat = K)
+
+Purpose:
+    - Generates all 2^K possible mine/no-mine assignments.
+    - Implements SAT-style exhaustive search.
+
+Why Used:
+    - Memory efficient.
+    - Avoids storing all combinations in RAM.
+
+Time Complexity:
+    O(2^K) total iterations.
+
+Space Complexity:
+    O(1) auxiliary (lazy evaluation).
+
+
+6. NetworkX Graph — Constraint Graph
+
+
+Data Structure:
+    nx.Graph() (undirected graph)
+
+Node Types:
+    ("var", r, c)  → Variable (unknown cell)
+    ("clue", r, c) → Constraint (clue cell)
+
+Purpose:
+    - Models the bipartite relationship between:
+        • Unknown variables
+        • Clue constraints
+    - Visualizes SAT-style constraint structure.
+
+Why Used:
+    - Clean abstraction for graph relationships.
+    - Built-in drawing and layout tools.
+
+Space Complexity:
+    O(V + E), where:
+        V = number of nodes
+        E = number of edges
+
+
+7. Python Dictionary — Graph Position Mapping
+
+
+Data Structure:
+    dict {node: (x, y)}
+
+Example:
+    pos[("var", 1, 1)] = (1, -1)
+
+Purpose:
+    - Stores screen coordinates for each graph node.
+    - Required for graph visualization.
+
+Why Used:
+    - O(1) lookup.
+    - Direct compatibility with NetworkX drawing API.
+
+Space Complexity:
+    O(V)
+
+
+8. Python Lists — Node Grouping for Visualization
+
+
+Data Structures:
+    var_nodes   → list of variable nodes
+    clue_nodes  → list of clue nodes
+    mine_nodes  → list of confirmed mine nodes
+
+Purpose:
+    - Separates different node types.
+    - Allows different shapes and labels in the graph.
+
+Why Used:
+    - Simple and efficient classification.
+    - Improves visualization clarity.
+
+Space Complexity:
+    O(V)
+
+
+9. Python Dictionary — Graph Labels
+
+
+Data Structure:
+    dict {node: label_string}
+
+Examples:
+    "?" → unknown variable  
+    "M" → confirmed mine  
+    "1", "2", "3" → clue labels  
+
+Purpose:
+    - Stores text displayed inside each graph node.
+
+Why Used:
+    - Required by NetworkX label renderer.
+    - Flexible labeling mechanism.
+
+Space Complexity:
+    O(V)
+
+
+10. Matplotlib Figure & Axes — Visualization Layer
+
+
+Data Structures:
+    Figure object
+    Axes object
+
+Purpose:
+    - Renders the Minesweeper constraint graph.
+    - Handles display formatting, title, and layout.
+
+Why Used:
+    - Standard Python scientific plotting library.
+    - Fully compatible with NetworkX.
+
+Space Complexity:
+    O(V + E) during rendering.
+
+
+| Data Structure | Purpose | Complexity |
+|----------------|----------|------------|
+| 2D List | Minesweeper board | O(N) |
+| List | Unknown cell storage | O(K) |
+| Tuple | Cell coordinates | O(1) |
+| Set | Mine storage | O(K) |
+| itertools.product | Boolean enumeration | O(2^K) |
+| NetworkX Graph | Constraint model | O(V + E) |
+| Dictionary | Node positions & labels | O(V) |
+| Lists | Node grouping | O(V) |
+| Matplotlib objects | Visualization | O(V + E) |
+
