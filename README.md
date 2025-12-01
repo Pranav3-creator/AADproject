@@ -1013,33 +1013,36 @@ This project demonstrates:
 
 Ensure your project has these files:
 
-
-solvers/
-  ├── __init__.py         
-  ├── sat.py              
-  ├── vertex_cover.py   
-  ├── hampath.py          
-  └── subsetsum.py        
-
-reductions/
-  ├── __init__.py          
-  ├── sat_to_vc.py        
-  └── subsetsum_to_sat.py 
-
-bench/
-  ├── __init__.py          
-  ├── run.py             
-  └── plots.py            
-
-bonus/
-  ├── __init__.py        
-  └── sudoku_sat.py       
-
-data/                     
-utils/                    
+AAD_Project/   
+   |-Bonus/
+   |  |-Sudoku_and_Minisat
+   |-Bonus_Sol/
+   |  |-Sudoku_sol.jpg
+   |-Graphs/
+   |  |-Hamilton_path.jpg
+   |  |-SAT.jpg
+   |  |-Subset_sum.jpg
+   |  |-Vertex Cover.jpg
+   |-Reductions/
+   |  |-SAT_to_VC
+   |  |-Subset_Sum_to_VC
+   |-Reductions_Sol/
+   |  |-SAT_to_VC.jpg
+   |   |-Subset_Sum_to_VC.jpg
+   |-Solutions/
+   |   |-Hamilton path
+   |   |-SAT solver
+   |  |-Subset Sum
+   |   |-Vertex Cover
+   |-P vx NP Demonstrator Report.docx
+P vx NP Demonstrator Report.docx
+Data/
+   |-Hampath
+   |-SAT
+   |-Subset Sum
+   |-VC
 README.md                  
-requirements.txt           
-
+test.txt
 
 ---
 
