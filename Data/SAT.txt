@@ -1,0 +1,16 @@
+n= 5, m= 21, sat=True, nodes=4, time=0.000052s
+n= 6, m= 25, sat=True, nodes=3, time=0.000046s
+n= 7, m= 29, sat=True, nodes=4, time=0.000056s
+n= 8, m= 33, sat=True, nodes=3, time=0.000059s
+n= 9, m= 37, sat=True, nodes=5, time=0.000087s
+n=10, m= 42, sat=True, nodes=7, time=0.000146s
+n=11, m= 46, sat=True, nodes=5, time=0.000094s
+n=12, m= 50, sat=False, nodes=15, time=0.000437s
+n=13, m= 54, sat=True, nodes=3, time=0.000204s
+n=14, m= 58, sat=True, nodes=7, time=0.000435s
+n=15, m= 63, sat=True, nodes=9, time=0.000465s
+n=16, m= 67, sat=True, nodes=7, time=0.000298s
+n=17, m= 71, sat=True, nodes=17, time=0.000767s
+n=18, m= 75, sat=True, nodes=8, time=0.000308s
+n=19, m= 79, sat=True, nodes=7, time=0.000471s
+n=20, m= 84, sat=False, nodes=97, time=0.005029s

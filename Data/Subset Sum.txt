@@ -1,0 +1,10 @@
+n= 8 | BF: found=True, ops=68, time=0.000084s | MITM: found=True, ops=32, time=0.000038s
+n=10 | BF: found=True, ops=611, time=0.000797s | MITM: found=True, ops=64, time=0.000074s
+n=12 | BF: found=True, ops=120, time=0.000180s | MITM: found=True, ops=128, time=0.000138s
+n=14 | BF: found=True, ops=1312, time=0.002066s | MITM: found=True, ops=256, time=0.000366s
+n=16 | BF: found=True, ops=2504, time=0.004409s | MITM: found=True, ops=512, time=0.000604s
+n=18 | BF: found=True, ops=948, time=0.001701s | MITM: found=True, ops=1024, time=0.001270s
+n=20 | BF: found=True, ops=944, time=0.001902s | MITM: found=True, ops=2048, time=0.002751s
+n=22 | BF: found=True, ops=20348, time=0.046363s | MITM: found=True, ops=4096, time=0.005718s
+n=24 | BF: found=True, ops=7152, time=0.016714s | MITM: found=True, ops=8192, time=0.012844s
+n=26 | BF: found=True, ops=27647, time=0.069008s | MITM: found=True, ops=16384, time=0.025296s

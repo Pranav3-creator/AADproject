@@ -1,0 +1,6 @@
+n= 5 | BT: sat=True, ops=9, time=0.000055s | HK: sat=True, ops=38, time=0.000048s
+n= 6 | BT: sat=False, ops=20, time=0.000018s | HK: sat=False, ops=20, time=0.000045s
+n= 7 | BT: sat=True, ops=28, time=0.000034s | HK: sat=True, ops=201, time=0.000180s
+n= 8 | BT: sat=True, ops=25, time=0.000019s | HK: sat=True, ops=278, time=0.000365s
+n= 9 | BT: sat=True, ops=62, time=0.000041s | HK: sat=True, ops=403, time=0.000542s
+n=10 | BT: sat=True, ops=27, time=0.000027s | HK: sat=True, ops=3094, time=0.003185s

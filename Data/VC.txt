@@ -1,0 +1,9 @@
+n= 4 | exact_size=1, approx_size=2, exact_time=0.000018s, approx_time=0.000008s
+n= 5 | exact_size=2, approx_size=4, exact_time=0.000029s, approx_time=0.000010s
+n= 6 | exact_size=2, approx_size=4, exact_time=0.000023s, approx_time=0.000009s
+n= 7 | exact_size=3, approx_size=6, exact_time=0.000103s, approx_time=0.000013s
+n= 8 | exact_size=4, approx_size=6, exact_time=0.000126s, approx_time=0.000014s
+n= 9 | exact_size=4, approx_size=6, exact_time=0.000185s, approx_time=0.000016s
+n=10 | exact_size=6, approx_size=8, exact_time=0.000641s, approx_time=0.000023s
+n=11 | exact_size=7, approx_size=10, exact_time=0.001182s, approx_time=0.000029s
+n=12 | exact_size=7, approx_size=12, exact_time=0.001989s, approx_time=0.000041s
